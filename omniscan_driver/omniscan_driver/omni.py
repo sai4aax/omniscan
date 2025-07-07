@@ -1,6 +1,6 @@
 import rclpy
 from rclpy.node import Node
-from omniscan.msg import OmniscanPing
+from omniscan_msgs.msg import OmniscanPing
 from omni_resource import Device4Omniscan
 from random import uniform, randint
 import time
