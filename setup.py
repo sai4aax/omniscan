@@ -25,7 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
             'sonar_node = omniscan.omniscan_450fs:main',
-            'mock_sensor = omniscan.mock_sensor:main'
+            'mock_sensor = omniscan.mock_sensor:main',
             'publish = omniscan.publish:main'
         ],
     },
