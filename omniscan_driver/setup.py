@@ -21,9 +21,9 @@ setup(
     #tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'sonar_node = omniscan.omniscan_450fs:main',
-            'mock_sensor = omniscan.mock_sensor:main',
-            'publish = omniscan.publish:main'
+            'sonar_node = omniscan_driver.omniscan_450fs:main',
+            'mock_sensor = omniscan_driver.mock_sensor:main',
+            'publish = omniscan_driver.publish:main'
         ],
     },
 )
