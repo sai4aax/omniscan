@@ -177,10 +177,12 @@ class PingMessage(object):
         if self.payload_length > 0:
             ## The struct formatting string for the message payload
             self.payload_format = self.get_payload_format()
+            # print("payload format: %s" % self.payload_format)
 
             # Extract payload
             try:
                 payload = struct.unpack(PingMessage.endianess + self.payload_format, self.msg_data[PingMessage.headerLength:PingMessage.headerLength + self.payload_length])
+                # print(payload)
             except Exception as e:
                 print("error unpacking payload: %s" % e)
                 print("msg_data: %s, header: %s" % (msg_data, header))
@@ -190,6 +192,9 @@ class PingMessage(object):
                 for i, attr in enumerate(self.payload_field_names):
                     try:
                         setattr(self, attr, payload[i])
+                        if attr == "pwr_results":
+                            setattr(self, attr, payload[i:])  # for variable length fields, set the last field as a bytearray
+                            # print(payload[i:])
                     # empty trailing variable data field
                     except IndexError as e:
                         if self.message_id in variable_msgs:
@@ -230,8 +235,18 @@ class PingMessage(object):
             var_length = self.payload_length - payload_dict[self.message_id]["payload_length"]  # Subtract static length portion from payload length
             if var_length <= 0:
                 return payload_dict[self.message_id]["format"]  # variable data portion is empty
+            
+            if var_length % 4 != 0:
+                raise ValueError(f"Invalid variable payload size for float32 array: {var_length} bytes")
 
-            return payload_dict[self.message_id]["format"] + str(var_length) + "s"
+            
+            if self.message_id == definitions.OMNISCAN450_GET_OS_MONO_PROFILE:
+                num_floats = var_length // 4
+                # print(f"OMNISCAN450_GET_OS_MONO_PROFILE: {num_floats} floats")
+                return payload_dict[self.message_id]["format"] + "f" * num_floats
+            else:
+                return payload_dict[self.message_id]["format"] + str(var_length) + "s"
+            
         else: # messages with a static (constant) length
             return payload_dict[self.message_id]["format"]
 

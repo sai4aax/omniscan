@@ -11,9 +11,9 @@
 from . import device
 from . import pingmessage
 from . import definitions
+from collections.abc import Iterable
 
-
-class Sensor(device.PingDevice):
+class OmniScan(device.PingDevice):
     ##
     # @brief Initialize the Omniscan sensor device.
     # This function calls the base PingDevice.initialize() method and verifies
@@ -74,7 +74,7 @@ class Sensor(device.PingDevice):
     # @param reserved_3, reserved_4, reserved_5 - Reserved fields, set to 0.
     #
     # @return True if the parameters are set and verified successfully, False otherwise.
-    def set_os_ping_params(self, start_mm=0, length_mm=5000, msec_per_ping=0, reserved_1=0.0, reserved_2=0.0, pulse_len_percent=0.0, filter_duration_percent=0.0, gain_index=0, num_results=0, enable=1, reserved_3=0, reserved_4=0, reserved_5=0):
+    def set_os_ping_params(self, start_mm=0, length_mm=5000, msec_per_ping=0, reserved_1=0.0, reserved_2=0.0, pulse_len_percent=0.0, filter_duration_percent=0.0, gain_index=0, num_results=20, enable=1, reserved_3=0, reserved_4=0, reserved_5=0):
         """
         Set Omniscan450 OS Ping Params.
         All parameters correspond to the OMNISCAN450_CONTROL_OS_PING_PARAMS message fields.
@@ -184,8 +184,8 @@ class Sensor(device.PingDevice):
             "min_pwr_db": m.min_pwr_db,
             "transducer_heading_deg": m.transducer_heading_deg,
             "vehicle_heading_deg": m.vehicle_heading_deg,
-            "pwr_results": list(m.pwr_results)
-        }
+            "pwr_results" : list(m.pwr_results) if isinstance(m.pwr_results, Iterable) and not isinstance(m.pwr_results, (str, bytes)) else [m.pwr_results]
+            }
   
         return result
         
@@ -204,7 +204,7 @@ if __name__ == "__main__":
         parser.print_help()
         exit(1)
 
-    p = Sensor()
+    p = OmniScan()
 
     if args.device is not None:
         p.connect_serial(args.device, args.baudrate)
@@ -218,47 +218,43 @@ if __name__ == "__main__":
 
     print("Initialized: %s" % p.initialize())
 
-    # print("\ntesting get_device_information")
-    # result = p.get_device_information()
-    # print("  " + str(result))
-    # print("  > > pass: %s < <" % (result is not None))
 
-    # print("\ntesting get_protocol_version")
-    # result = p.get_protocol_version()
-    # print("  " + str(result))
-    # print("  > > pass: %s < <" % (result is not None))
-
-    # print("\ntesting get_protocol_version")
-    # result = p.get_protocol_version()
-    # print("  " + str(result))
-    # print("  > > pass: %s < <" % (result is not None))
-
-    print("setting the speed_of_sound")
-    result = p.set_speed_of_sound(speed_of_sound=1380000, verify=True)
+    print("\ntesting get_device_information")
+    result = p.get_device_information()
     print("  " + str(result))
     print("  > > pass: %s < <" % (result is not None))
 
-    # print("\ntesting set_os_ping_params")
-    # result = p.set_os_ping_params(
-    #     start_mm=0,                  # u32, mm
-    #     length_mm=5000,              # u32, mm
-    #     msec_per_ping=0,             # u32, msec (0 for best ping rate)
-    #     reserved_1=0.0,              # float, set to 0
-    #     reserved_2=0.0,              # float, set to 0
-    #     pulse_len_percent=0.002,     # float, 0.002 typical
-    #     filter_duration_percent=0.0015, # float, 0.0015 typical
-    #     gain_index=-1,               # i16, -1 for auto gain
-    #     num_results=600,             # u16, 600 typical (200-1200)
-    #     enable=1,                    # u8, 1 to enable
-    #     reserved_3=0,                # u8, set to 0
-    #     reserved_4=0,                # u8, set to 0
-    #     reserved_5=0                 # u8, set to 0
-    # )
+    # print("\ntesting get_protocol_version")
+    # result = p.get_protocol_version()
     # print("  " + str(result))
     # print("  > > pass: %s < <" % (result is not None))
 
-    # print("\ntesting get_protocol_version")
-    # result = p.get_os_mono_profile()
+    # print("setting the speed_of_sound")
+    # result = p.set_speed_of_sound(speed_of_sound=1400000, verify=True)
+    # print("  " + str(result))
+    # print("  > > pass: %s < <" % (result is not None))
+
+    print("\ntesting set_os_ping_params")
+    result = p.set_os_ping_params(
+        start_mm=0,                  # u32, mm
+        length_mm=5000,              # u32, mm
+        msec_per_ping=0,             # u32, msec (0 for best ping rate)
+        reserved_1=0.0,              # float, set to 0
+        reserved_2=0.0,              # float, set to 0
+        pulse_len_percent=0.002,     # float, 0.002 typical
+        filter_duration_percent=0.0015, # float, 0.0015 typical
+        gain_index=-1,               # i16, -1 for auto gain
+        num_results=20,             # u16, 600 typical (200-1200)
+        enable=1,                    # u8, 1 to enable
+        reserved_3=0,                # u8, set to 0
+        reserved_4=0,                # u8, set to 0
+        reserved_5=0                 # u8, set to 0
+    )
+    print("  " + str(result))
+    print("  > > pass: %s < <" % (result is not None))
+
+    # print("\ntesting get_os_mono_profile")
+    result = p.get_os_mono_profile()
     # print("  " + str(result))
     # print("  > > pass: %s < <" % (result is not None))
 

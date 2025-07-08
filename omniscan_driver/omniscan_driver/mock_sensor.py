@@ -6,7 +6,7 @@ import socket
 import struct
 from omni_resource import definitions  # changed from brping to omniscan
 import time
-from random import randint as rand
+import random
 
 
 class Sensor():
@@ -66,7 +66,7 @@ class Sensor():
             "timestamp_ms": int((time.time() - self.start_time) * 1000),  # current time in nanoseconds
             "ping_hz": 400000,  # Example value
             "gain_index": (
-                rand(0, 7)
+                random.randint(0, 7)
                 if self.os_ping_params["gain_index"] == -1
                 else self.os_ping_params["gain_index"]
             ),
@@ -106,7 +106,7 @@ class Sensor():
             "timestamp_ms": int((time.time() - self.start_time) * 1000),  # timestamp in ms
             "ping_hz": 400000,
             "gain_index": (
-                rand(0, 7)
+                random.randint(0, 7)
                 if self.os_ping_params["gain_index"] == -1
                 else self.os_ping_params["gain_index"]
             ),
@@ -178,7 +178,6 @@ class Sensor():
         return struct.pack("<I", speed)
 
     def os_ping_params_payload(self):
-        p = self.os_ping_params
         return struct.pack(
             "<IIIffffhHBBBB",
             self.os_ping_params["start_mm"],
@@ -202,7 +201,7 @@ class Sensor():
         
         # It simulates a sensor that sends periodic messages
         measurements = [
-            rand(0, 100) for _ in range(self.os_ping_params["num_results"])
+            random.uniform(self.os_mono_profile["start_mm"], self.os_mono_profile["length_mm"]) for _ in range(self.os_ping_params["num_results"])
         ]
         # Simulate sending a ping message
         self.update_profile(pwr_results=measurements)
@@ -211,8 +210,8 @@ class Sensor():
         # return None
         header = struct.pack(
             "<IIIIIHHHBBffffff",
-            self.os_mono_profile["start_mm"],
             self.os_mono_profile["ping_number"],
+            self.os_mono_profile["start_mm"],
             self.os_mono_profile["length_mm"],
             self.os_mono_profile["timestamp_ms"],
             self.os_mono_profile["ping_hz"],    
@@ -228,7 +227,7 @@ class Sensor():
             self.os_mono_profile["transducer_heading_deg"],
             self.os_mono_profile["vehicle_heading_deg"],
         )
-        pwr_results_bytes = struct.pack("<" + "H" * len(self.os_mono_profile["pwr_results"]), *self.os_mono_profile["pwr_results"])
+        pwr_results_bytes = struct.pack("<" + "f" * len(self.os_mono_profile["pwr_results"]), *self.os_mono_profile["pwr_results"])
         return header + pwr_results_bytes
 
     def handle_message(self, message_id, payload):
@@ -364,35 +363,39 @@ def main():
     HOST = args.host if args.host is not None else "127.0.0.1"
     PORT = args.port if args.port is not None else 12345
 
-    if args.tcp:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind((HOST, PORT))
-            s.listen(1)
-            print(f"Omniscan 450fs mock server listening on TCP {HOST}:{PORT}")
-            while True:
-                print("\nWaiting for device to connect...")
-                conn, addr = s.accept()
-                with conn:
-                    print(f"\<------------start------------")
-                    print(f"Device connected: {addr}")
-                    try:
-                        while True:
-                            data = conn.recv(4096)
-                            if not data:
-                                print(f"Device disconnected: {addr}")
-                                print(f"------------end------------>")
-                                break
-                            omniscan.process_message(data, conn.sendall)
-                    except Exception as e:
-                        print(f"Error with device {addr}: {e}")
-    else:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            s.bind((HOST, PORT))
-            print(f"Omniscan 450fs mock server listening on UDP {HOST}:{PORT}")
-            while True:
-                data, addr = s.recvfrom(4096)
-                omniscan.process_message(data, s.sendto, addr)
+    try:
+        if args.tcp:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind((HOST, PORT))
+                s.listen(1)
+                print(f"Omniscan 450fs mock server listening on TCP {HOST}:{PORT}")
+                while True:
+                    print("\nWaiting for device to connect...")
+                    conn, addr = s.accept()
+                    with conn:
+                        print(f"\<------------start------------")
+                        print(f"Device connected: {addr}")
+                        try:
+                            while True:
+                                data = conn.recv(4096)
+                                if not data:
+                                    print(f"Device disconnected: {addr}")
+                                    print(f"------------end------------>")
+                                    break
+                                omniscan.process_message(data, conn.sendall)
+                        except Exception as e:
+                            print(f"Error with device {addr}: {e}")
+        else:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.bind((HOST, PORT))
+                print(f"Omniscan 450fs mock server listening on UDP {HOST}:{PORT}")
+                while True:
+                    data, addr = s.recvfrom(4096)
+                    omniscan.process_message(data, s.sendto, addr)
+    except KeyboardInterrupt:
+        print("\n[INFO] Mock sensor terminated by user.")
+    finally:
+        s.close()
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

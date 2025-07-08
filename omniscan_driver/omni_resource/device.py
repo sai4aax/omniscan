@@ -8,16 +8,19 @@
 # DO NOT EDIT
 # ~!~!~!~!~!~!~!~!~!~!~!~!~!~!~!~!~!~!~!~!~!~!~!~!~!~!~!~!~!
 
-from . import definitions
-from . import pingmessage
+import sys
+import time
 from collections import deque
 import serial
 import socket
-import time
+
+from . import definitions
+from . import pingmessage
+
 
 class PingDevice(object):
-
     _input_buffer = deque()
+
     def __init__(self):
         ## A helper class to take care of decoding the input stream
         self.parser = pingmessage.PingParser()
@@ -27,179 +30,163 @@ class PingDevice(object):
 
         # IO device
         self.iodev = None
+        self.connection_type = None
         self.server_address = None
 
-    ##
-    # @brief Do the connection via an serial link
-    #
-    # @param device_name: Serial device name. E.g: /dev/ttyUSB0 or COM5
-    # @param baudrate: Connection baudrate used in the serial communication
-    #
-    def connect_serial(self, device_name: str, baudrate: int =115200):
-        if device_name is None:
-            print("Device name is required")
-            return
+    def connect_serial(self, device_name: str, baudrate: int = 115200, timeout: float = 5.0):
+        if self.is_connected():
+            self.disconnect()
+
+        if not device_name:
+            raise ValueError("Device name is required for serial connection.")
 
         try:
-            print("Opening %s at %d bps" % (device_name, baudrate))
+            print(f"Opening serial device {device_name} at {baudrate} bps")
+            self.iodev = serial.Serial(device_name, baudrate, timeout=timeout, write_timeout=timeout)
+            self.connection_type = "serial"
+        except serial.SerialException as e:
+            self.disconnect()
+            raise ConnectionError(f"Failed to open serial port {device_name}: {e}")
 
-            ## Serial object for device communication
-            # write_timeout fixes it getting stuck forever atempting to write to
-            # /dev/ttyAMA0 on Raspberry Pis, this raises an exception instead.
-            self.iodev = serial.Serial(device_name, baudrate, write_timeout=1.0)
-            self.iodev.send_break()
-            self.iodev.write("U".encode("ascii"))
-
-        except Exception as exception:
-            raise Exception("Failed to open the given serial port: {0}".format(exception))
-
-    ##
-    # @brief Do the connection via an UDP link
-    #
-    # @param host: UDP server address (IPV4) or name
-    # @param port: port used to connect with server
-    #
-    def connect_udp(self, host: str = None, port: int = 12345):
-        if host is None:
-            host = '0.0.0.0' # Connect to local host
+    def connect_udp(self, host: str, port: int, timeout: float = 5.0):
+        # TODO: if this script starting before the UDP server, it will fail to connect. and not able to reconnect in the timeout period.
+        if self.is_connected():
+            self.disconnect()
 
         self.server_address = (host, port)
         try:
-            print("Opening %s:%d" % self.server_address)
-            ## Serial object for device communication
+            print(f"Opening UDP socket at {host}:{port}")
             self.iodev = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.iodev.settimeout(timeout)
+            # For UDP, connect() just sets the default remote address
             self.iodev.connect(self.server_address)
-            self.iodev.setblocking(0)
+            self.connection_type = "udp"
+        except socket.gaierror as e:
+            raise ConnectionError(f"Hostname {host} could not be resolved: {e}")
+        except socket.error as e:
+            self.disconnect()
+            raise ConnectionError(f"Failed to open UDP socket at {host}:{port}: {e}")
 
-        except Exception as exception:
-            raise Exception("Failed to open the given UDP port: {0}".format(exception))
-
-    ##
-    # @brief Do the connection via a TCP link
-    #
-    # @param host: TCP server address (IPV4) or name
-    # @param port: port used to connect with server
-    #
-    def connect_tcp(self, host: str = None, port: int = 12345):
-        if host is None:
-            host = '127.0.0.1'  # Default to localhost
+    def connect_tcp(self, host: str, port: int, timeout: float = 5.0):
+        if self.is_connected():
+            self.disconnect()
 
         self.server_address = (host, port)
         try:
-            print("Opening TCP %s:%d" % self.server_address)
+            print(f"Opening TCP socket at {host}:{port}")
             self.iodev = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.iodev.settimeout(timeout)
             self.iodev.connect(self.server_address)
-            self.iodev.setblocking(0)
-        except Exception as exception:
-            raise Exception("Failed to open the given TCP port: {0}".format(exception))
+            self.connection_type = "tcp"
+        except socket.timeout:
+            self.disconnect()
+            raise ConnectionError(f"Connection to TCP server {host}:{port} timed out after {timeout} seconds.")
+        except socket.gaierror as e:
+            raise ConnectionError(f"Hostname {host} could not be resolved: {e}")
+        except socket.error as e:
+            self.disconnect()
+            raise ConnectionError(f"Failed to connect to TCP server at {host}:{port}: {e}")
 
-    ##
-    # @brief Read available data from the io device
-    def read_io(self):
-        if self.iodev == None:
-            raise Exception("IO device is null, please configure a connection before using the class.")
-        elif type(self.iodev).__name__ == 'Serial':
-            bytes = self.iodev.read(self.iodev.in_waiting)
-            self._input_buffer.extendleft(bytes)
-        elif isinstance(self.iodev, socket.socket):
-            udp_buffer_size = 4096
+    def disconnect(self):
+        if self.iodev is not None:
             try:
-                bytes = self.iodev.recv(udp_buffer_size)
-                self._input_buffer.extendleft(bytes)
-                if len(bytes) == udp_buffer_size:
-                    self.update_input_buffer()
-            except BlockingIOError as exception:
-                pass
-        else:
-            raise Exception("Unknown IO device type.")
+                self.iodev.close()
+            except Exception as e:
+                print(f"Error while disconnecting: {e}", file=sys.stderr)
+            finally:
+                self.iodev = None
+                self.connection_type = None
+                self.server_address = None
 
-    ##
-    # @brief Consume rx buffer data until a new message is successfully decoded
-    #
-    # @return A new PingMessage: as soon as a message is parsed (there may be data remaining in the buffer to be parsed, thus requiring subsequent calls to read())
-    # @return None: if the buffer is empty and no message has been parsed
+    def is_connected(self):
+        return self.iodev is not None
+
+    def read_io(self):
+        if not self.is_connected():
+            raise ConnectionError("IO device is not connected.")
+        try:
+            if self.connection_type == 'serial':
+                data = self.iodev.read(4096)
+                self._input_buffer.extendleft(data)
+            elif self.connection_type in ['udp', 'tcp']:
+                data = self.iodev.recv(4096)
+                self._input_buffer.extendleft(data)
+        except serial.SerialException as e:
+            self.disconnect()
+            raise ConnectionError(f"Serial device disconnected: {e}")
+        except socket.timeout:
+            # This is expected if no data is available on a socket with a timeout
+            pass
+        except socket.error as e:
+            self.disconnect()
+            raise ConnectionError(f"Socket disconnected: {e}")
+        except Exception as e:
+            self.disconnect()
+            raise ConnectionError(f"An unexpected error occurred during read: {e}")
+
     def read(self):
-        self.read_io()
+        try:
+            self.read_io()
+        except ConnectionError as e:
+            # print(f"Connection error in read(): {e}", file=sys.stderr)
+            return None
+
         while len(self._input_buffer):
             b = self._input_buffer.pop()
-
             if self.parser.parse_byte(b) == pingmessage.PingParser.NEW_MESSAGE:
-                # a successful read depends on a successful handling
-                if not self.handle_message(self.parser.rx_msg):
-                    return None
-                else:
+                if self.handle_message(self.parser.rx_msg):
                     return self.parser.rx_msg
         return None
 
-    ##
-    # @brief Write data to device
-    #
-    # @param data: bytearray to write to device
-    #
-    # @return Number of bytes written
     def write(self, data):
-        if self.iodev == None:
-            raise Exception("IO device is null, please configure a connection before using the class.")
-        elif type(self.iodev).__name__ == 'Serial':
-            return self.iodev.write(data)
-        elif isinstance(self.iodev, socket.socket):
-            return self.iodev.send(data)
-        else:
-            raise Exception("Unknown IO device type.")
+        if not self.is_connected():
+            raise ConnectionError("IO device is not connected.")
+        try:
+            if self.connection_type == 'serial':
+                return self.iodev.write(data)
+            elif self.connection_type in ['udp', 'tcp']:
+                return self.iodev.send(data)
+        except serial.SerialException as e:
+            self.disconnect()
+            raise ConnectionError(f"Failed to write to serial device: {e}")
+        except socket.error as e:
+            self.disconnect()
+            raise ConnectionError(f"Failed to write to socket: {e}")
+        except Exception as e:
+            self.disconnect()
+            raise ConnectionError(f"An unexpected error occurred during write: {e}")
 
-    ##
-    # @brief Make sure there is a device on and read some initial data
-    #
-    # @return True if the device replies with expected data, False otherwise
     def initialize(self):
+        if not self.is_connected():
+            print("Cannot initialize, device not connected.", file=sys.stderr)
+            return False
         return self.request(definitions.COMMON_GET_PROTOCOL_VERSION) is not None
 
-    ##
-    # @brief Request the given message ID
-    #
-    # @param m_id: The message ID to request from the device
-    # @param timeout: The time in seconds to wait for the device to send
-    # the requested message before timing out and returning
-    #
-    # @return PingMessage: the device reply if it is received within timeout period, None otherwise
-    #
-    # @todo handle nack to exit without blocking
     def request(self, m_id, timeout=0.5):
         msg = pingmessage.PingMessage(definitions.COMMON_GENERAL_REQUEST)
         msg.requested_id = m_id
         msg.pack_msg_data()
-        self.write(msg.msg_data)
+        try:
+            self.write(msg.msg_data)
+        except ConnectionError as e:
+            print(f"Failed to send request: {e}", file=sys.stderr)
+            return None
 
-        # uncomment to return nacks in addition to m_id
+        # A nack is a valid response, wait for it
         return self.wait_message([m_id, definitions.COMMON_GENERAL_NACK], timeout)
-
         return self.wait_message([m_id], timeout)
 
-    ##
-    # @brief Wait until we receive a message from the device with the desired message_id for timeout seconds
-    #
-    # @param message_id: The message id to wait to receive from the device
-    # @param timeout: The timeout period in seconds to wait
-    #
-    # @return PingMessage: the message from the device if it is received within timeout period, None otherwise
     def wait_message(self, message_ids, timeout=1.2):
         tstart = time.time()
         while time.time() < tstart + timeout:
             msg = self.read()
-            if msg is not None:
-                if msg.message_id in message_ids:
-                    return msg
-            time.sleep(0.005)
+            if msg is not None and msg.message_id in message_ids:
+                return msg
+            time.sleep(0.005)  # Small sleep to avoid busy-waiting
         return None
 
-    ##
-    # @brief Handle an incoming message from the device.
-    # Extract message fields into self attributes.
-    #
-    # @param msg: the PingMessage to handle.
-    # @return True if the PingMessage was handled successfully
     def handle_message(self, msg):
-        # TODO is this message for us?
+        # TODO: check if this message is for us (dst_device_id)
         setattr(self, "_src_device_id", msg.src_device_id)
         setattr(self, "_dst_device_id", msg.dst_device_id)
 
@@ -207,84 +194,44 @@ class PingDevice(object):
             try:
                 for attr in pingmessage.payload_dict[msg.message_id]["field_names"]:
                     setattr(self, "_" + attr, getattr(msg, attr))
+                return True
             except AttributeError as e:
-                print("attribute error while handling msg %d (%s): %s" % (msg.message_id, msg.name, msg.msg_data))
+                print(f"Attribute error while handling msg {msg.message_id} ({msg.name}): {e}", file=sys.stderr)
                 return False
         else:
-            print("Unrecognized message: %d", msg)
+            print(f"Unrecognized message: {msg.message_id}", file=sys.stderr)
             return False
 
-        return True
-
-    ##
-    # @brief Dump object into string representation.
-    #
-    # @return string: a string representation of the object
     def __repr__(self):
-        representation = "---------------------------------------------------------\n~Ping Object~"
+        connection_status = "connected" if self.is_connected() else "disconnected"
+        return (f"PingDevice(connection={self.connection_type}, "
+                f"address={self.server_address or 'N/A'}, status={connection_status})")
 
-        attrs = vars(self)
-        for attr in sorted(attrs):
-            try:
-                if attr != 'iodev':
-                    representation += "\n  - " + attr + "(hex): " + str([hex(item) for item in getattr(self, attr)])
-                if attr != 'data':
-                    representation += "\n  - " + attr + "(string): " + str(getattr(self, attr))
-            # TODO: Better filter this exception
-            except:
-                representation += "\n  - " + attr + ": " + str(getattr(self, attr))
-        return representation
-
-    ##
-    # @brief Get a device_information message from the device\n
-    # Message description:\n
-    # Device information
-    #
-    # @return None if there is no reply from the device, otherwise a dictionary with the following keys:\n
-    # device_type: Device type. 0: Unknown; 1: Ping Echosounder; 2: Ping360\n
-    # device_revision: device-specific hardware revision\n
-    # firmware_version_major: Firmware version major number.\n
-    # firmware_version_minor: Firmware version minor number.\n
-    # firmware_version_patch: Firmware version patch number.\n
-    # reserved: reserved\n
     def get_device_information(self):
         if self.request(definitions.COMMON_GET_DEVICE_INFORMATION) is None:
             return None
-        data = ({
-            "device_type": self._device_type,  # Device type. 0: Unknown; 1: Ping Echosounder; 2: Ping360
-            "device_revision": self._device_revision,  # device-specific hardware revision
-            "firmware_version_major": self._firmware_version_major,  # Firmware version major number.
-            "firmware_version_minor": self._firmware_version_minor,  # Firmware version minor number.
-            "firmware_version_patch": self._firmware_version_patch,  # Firmware version patch number.
+        return {
+            "device_type": self._device_type,
+            "device_revision": self._device_revision,
+            "firmware_version_major": self._firmware_version_major,
+            "firmware_version_minor": self._firmware_version_minor,
+            "firmware_version_patch": self._firmware_version_patch,
             "reserved": self._reserved,  # reserved
-        })
-        return data
+        }
 
-    ##
-    # @brief Get a protocol_version message from the device\n
-    # Message description:\n
-    # The protocol version
-    #
-    # @return None if there is no reply from the device, otherwise a dictionary with the following keys:\n
-    # version_major: Protocol version major number.\n
-    # version_minor: Protocol version minor number.\n
-    # version_patch: Protocol version patch number.\n
-    # reserved: reserved\n
     def get_protocol_version(self):
         if self.request(definitions.COMMON_GET_PROTOCOL_VERSION) is None:
             return None
-        data = ({
-            "version_major": self._version_major,  # Protocol version major number.
-            "version_minor": self._version_minor,  # Protocol version minor number.
-            "version_patch": self._version_patch,  # Protocol version patch number.
+        return {
+            "version_major": self._version_major,
+            "version_minor": self._version_minor,
+            "version_patch": self._version_patch,
             "reserved": self._reserved,  # reserved
-        })
-        return data
+        }
 
 
 if __name__ == "__main__":
     import argparse
-
 
     parser = argparse.ArgumentParser(description="Ping python library example.")
     parser.add_argument('--device', action="store", required=False, type=str, help="Ping device port. E.g: /dev/ttyUSB0")
@@ -292,38 +239,48 @@ if __name__ == "__main__":
     parser.add_argument('--udp', action="store", required=False, type=str, help="Ping UDP server. E.g: 0.0.0.0:12345")
     parser.add_argument('--tcp', action="store", required=False, type=str, help="Ping TCP server. E.g: 127.0.0.1:12345")
     args = parser.parse_args()
-    if args.device is None and args.udp is None and args.tcp is None:
+
+    if not any([args.device, args.udp, args.tcp]):
         parser.print_help()
         exit(1)
 
     p = PingDevice()
-    if args.device is not None:
-        p.connect_serial(args.device, args.baudrate)
-    elif args.udp is not None:
-        (host, port) = args.udp.split(':')
-        p.connect_udp(host, int(port))
-    elif args.tcp is not None:
-        (host, port) = args.tcp.split(':')
-        p.connect_tcp(host, int(port))
 
-    print("Initialized: %s" % p.initialize())
+    try:
+        if args.device:
+            p.connect_serial(args.device, args.baudrate)
+        elif args.udp:
+            host, port_str = args.udp.split(':')
+            p.connect_udp(host, int(port_str))
+        elif args.tcp:
+            host, port_str = args.tcp.split(':')
+            p.connect_tcp(host, int(port_str))
 
-    print("\ntesting get_device_information")
-    result = p.get_device_information()
-    print("  " + str(result))
-    print("  > > pass: %s < <" % (result is not None))
+        if not p.initialize():
+            print("Failed to initialize device.", file=sys.stderr)
+            exit(1)
 
-    # import time
-    # print("\nWaiting 5 seconds before sending another get_device_information...")
-    # time.sleep(5)
-    # print("\ntesting get_device_information after delay")
-    # result = p.get_device_information()
-    # print("  " + str(result))
-    # print("  > > pass: %s < <" % (result is not None))
+        print("Initialized: True")
+        print(p)
 
-    # print("\ntesting get_protocol_version")
-    # result = p.get_protocol_version()
-    # print("  " + str(result))
-    # print("  > > pass: %s < <" % (result is not None))
+        print("\nTesting get_device_information")
+        info = p.get_device_information()
+        if info:
+            print(f"  {info}")
+            print("  >> pass: True <<")
+        else:
+            print("  >> pass: False <<")
 
-    print(p)
+        print("\nTesting get_protocol_version")
+        proto = p.get_protocol_version()
+        if proto:
+            print(f"  {proto}")
+            print("  >> pass: True <<")
+        else:
+            print("  >> pass: False <<")
+
+    except (ConnectionError, ValueError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        exit(1)
+    finally:
+        p.disconnect()

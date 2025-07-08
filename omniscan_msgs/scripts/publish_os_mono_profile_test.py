@@ -1,28 +1,24 @@
+#!/usr/bin/env python3
 import rclpy
 from rclpy.node import Node
 from omniscan_msgs.msg import OsMonoProfile
-from omni_resource import Device4Omniscan
-from random import uniform, randint
+import numpy as np
 import time
+from random import uniform, randint
 
-class OmniscanNode(Node):
+class OsMonoProfilePublisher(Node):
+
     def __init__(self):
-        super().__init__('omniscan_driver_node')
-
-        # Create publisher
-        self.publisher_ = self.create_publisher(OsMonoProfile, 'omniscan/ping', 10)
-
-        # 2ms timer = 0.002 seconds => 500Hz
-        self.timer = self.create_timer(0.002, self.timer_callback)
-
-        self.get_logger().info('Omniscan node initialized and publishing at 2ms intervals')
-        self.start_time = time.time()
-        self.ping_number = 0
+        super().__init__('os_mono_profile_publisher')
+        self.publisher_ = self.create_publisher(OsMonoProfile, 'os_mono_profile', 10)
+        timer_period = 0.5  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
         
+        self.ping_number = 0
+        self.start_time = time.time()
 
     def timer_callback(self):
         self.ping_number += 1
-        # You can use real device data here if needed
         msg = OsMonoProfile()
         msg.ping_number = self.ping_number
         msg.start_mm = 0
@@ -41,20 +37,21 @@ class OmniscanNode(Node):
         msg.transducer_heading_deg = uniform(0.0, 360.0)
         msg.vehicle_heading_deg = uniform(0.0, 360.0)
         msg.pwr_results = [uniform(0.0, 1.0) for _ in range(msg.num_results)]
-
+        
         self.publisher_.publish(msg)
-        self.get_logger().debug('Published: %s' % str(msg.ping_number))
+        # self.get_logger().info('Publishing: "%s"' % msg)
 
 def main(args=None):
     rclpy.init(args=args)
-    node = OmniscanNode()
+    node = OsMonoProfilePublisher()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
-        node.get_logger().info('Shutting down Omniscan node...')
+        print("\n[INFO] OsMonoProfilePublisher node terminated by user.")
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

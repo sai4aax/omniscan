@@ -6,15 +6,12 @@
 
 
 # Common message IDs (copied from brping/definitions.py)
-# general
 COMMON_GENERAL_ACK = 1
 COMMON_GENERAL_NACK = 2
 COMMON_GENERAL_ASCII_TEXT = 3
 COMMON_GENERAL_REQUEST = 6
-# get
 COMMON_GET_DEVICE_INFORMATION = 4
 COMMON_GET_PROTOCOL_VERSION = 5
-# set
 COMMON_SET_DEVICE_ID = 100
 
 # Common payload dictionary (copied from brping/definitions.py)
@@ -76,12 +73,9 @@ payload_dict_common = {
 }
 
 # Omniscan450 message IDs (copied from brping/definitions.py)
-# general
 OMNISCAN450_GENERAL_JSON_WRAPPER = 10
-#control
 OMNISCAN450_CONTROL_SET_SPEED_OF_SOUND = 1002
 OMNISCAN450_CONTROL_OS_PING_PARAMS = 2197
-#get
 OMNISCAN450_GET_OS_MONO_PROFILE = 2198
 
 # Omniscan450 payload dictionary (copied from brping/definitions.py)
