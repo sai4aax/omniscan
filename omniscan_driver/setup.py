@@ -23,7 +23,6 @@ setup(
         'console_scripts': [
             'sonar_node = omniscan_driver.omniscan_450fs:main',
             'mock_sensor = omniscan_driver.mock_sensor:main',
-            'publish = omniscan_driver.publish_mono_profile_test:main',
             'omni_life = omniscan_driver.omniscan_lifecycle:main'
         ],
     },

@@ -206,7 +206,7 @@ class Sensor():
         # Simulate sending a ping message
         self.update_profile(pwr_results=measurements)
         
-        print(self.os_mono_profile)
+        # print(self.os_mono_profile)
         # return None
         header = struct.pack(
             "<IIIIIHHHBBffffff",
@@ -306,7 +306,7 @@ class Sensor():
         else:
             addr_str = "client"
 
-        print(f"\nGot {data} from {addr_str}")
+        # print(f"\nGot {data} from {addr_str}")
         if len(data) < 8 or data[:2] != b"BR":
             print("\t-Invalid or short message:", data)
             return
@@ -316,22 +316,22 @@ class Sensor():
         payload = data[8 : 8 + payload_length]
         if message_id == definitions.COMMON_GENERAL_REQUEST and len(payload) >= 2:
             requested_id = struct.unpack("<H", payload[:2])[0]
-            print(
-                f"\t-Device is requesting for {definitions.payload_dict_all[requested_id]['name']}({requested_id})"
-            )
+            # print(
+            #     f"\t-Device is requesting for {definitions.payload_dict_all[requested_id]['name']}({requested_id})"
+            # )
             response = self.handle_message(requested_id, b"")
             if response:
-                print(f"\t-Sending {response} to {addr_str}")
+                # print(f"\t-Sending {response} to {addr_str}")
                 send_func(response, addr) if addr else send_func(response)
             else:
                 print("\t-Unknown general request id:", requested_id)
         else:
-            print(
-                f"\t-Device pinged to {definitions.payload_dict_all[message_id]['name']}({message_id})"
-            )
+            # print(
+            #     f"\t-Device pinged to {definitions.payload_dict_all[message_id]['name']}({message_id})"
+            # )
             response = self.handle_message(message_id, payload)
             if response:
-                print(f"\t-Sending {response} to {addr_str}")
+                # print(f"\t-Sending {response} to {addr_str}")
                 send_func(response, addr) if addr else send_func(response)
             else:
                 print("\t-Unknown message id:", message_id)

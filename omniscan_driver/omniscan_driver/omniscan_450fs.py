@@ -29,24 +29,36 @@ class OmniscanNode(Node):
         try:
             import sys
             if user_args.device:
-                self.omniscan.connect_serial(user_args.device, user_args.baudrate)
+                self.omniscan.device_name = user_args.device
+                self.omniscan.baudrate = user_args.baudrate
+                self.omniscan.connection_type = 'serial'
             elif user_args.udp:
                 host, port_str = user_args.udp.split(':')
-                self.omniscan.connect_udp(host, int(port_str))
+                self.omniscan.server_address = (host, int(port_str))
+                self.omniscan.connection_type = 'udp'
             elif user_args.tcp:
                 host, port_str = user_args.tcp.split(':')
-                self.omniscan.connect_tcp(host, int(port_str))
-
-            if not self.omniscan.initialize():
-                print("Failed to initialize device.", file=sys.stderr)
+                self.omniscan.server_address = (host, int(port_str))
+                self.omniscan.connection_type = 'tcp'
+            else:
+                self.get_logger().error("No valid connection parameters provided.")
+                parser.print_help()
                 exit(1)
 
-            print("Connections Initialized: True")
+            self.get_logger().info(f"Connecting to Omniscan device with connection type: {self.omniscan.connection_type}")
+            self.omniscan.connect()
+            self.get_logger().info(f"Connected to Omniscan device with connection type: {self.omniscan.connection_type}")
+
+            if not self.omniscan.initialize():
+                self.get_logger().error("Failed to initialize device.")
+                exit(1)
+
+            self.get_logger().info("Connections Initialized: True")
             print(self.omniscan)
         except (ConnectionError, ValueError) as e:
-            print(f"Error: {e}", file=sys.stderr)
+            self.get_logger().error(f"Error: {e}")
             exit(1)
-
+        print("Omniscan device connected successfully.")
 
         # Create publisher
         self.publisher_ = self.create_publisher(OsMonoProfile, 'omniscan/ping', 10)
@@ -101,6 +113,7 @@ class OmniscanNode(Node):
         except Exception as e:
             self.get_logger().error(f"enable_ping({enable}) failed: {e}")
             return False
+        
 
 def main(args=None):
     rclpy.init(args=args)

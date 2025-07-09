@@ -192,6 +192,7 @@ class OmniScan(device.PingDevice):
     
 if __name__ == "__main__":
     import argparse
+    import sys
 
 
     parser = argparse.ArgumentParser(description="Ping python library example.")
@@ -206,15 +207,28 @@ if __name__ == "__main__":
 
     p = OmniScan()
 
-    if args.device is not None:
-        p.connect_serial(args.device, args.baudrate)
-    elif args.udp is not None:
-        (host, port) = args.udp.split(':')
-        p.connect_udp(host, int(port))
-    elif args.tcp is not None:
-        (host, port) = args.tcp.split(':')
-        p.connect_tcp(host, int(port))
-
+    try:
+        if args.device:
+            p.device_name = args.device
+            p.baudrate = args.baudrate
+            p.connection_type = 'serial'
+        elif args.udp:
+            host, port_str = args.udp.split(':')
+            p.server_address = (host, int(port_str))
+            p.connection_type = 'udp'
+        elif args.tcp:
+            host, port_str = args.tcp.split(':')
+            p.server_address = (host, int(port_str))
+            p.connection_type = 'tcp'
+        else:
+            print("No valid connection parameters provided.", file=sys.stderr)
+            parser.print_help()
+            exit(1)
+            
+        p.connect()
+    except (ConnectionError, ValueError) as e:
+        p.logger.error(f"Error: {e}", file=sys.stderr)
+        exit(1)
 
     print("Initialized: %s" % p.initialize())
 
