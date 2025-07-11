@@ -23,7 +23,9 @@ setup(
         'console_scripts': [
             'sonar_node = omniscan_driver.omniscan_450fs:main',
             'mock_sensor = omniscan_driver.mock_sensor:main',
-            'omni_life = omniscan_driver.omniscan_lifecycle:main'
+            'omni_life = omniscan_driver.omniscan_lifecycle:main',
+            'sonar2points = omniscan_driver.sonar_point_cloud_publisher:main',
+            'dummy_tf = omniscan_driver.tf_publish:main' # this is not working correctly, use tf2 
         ],
     },
 )

@@ -201,7 +201,7 @@ class Sensor():
         
         # It simulates a sensor that sends periodic messages
         measurements = [
-            random.uniform(self.os_mono_profile["start_mm"], self.os_mono_profile["length_mm"]) for _ in range(self.os_ping_params["num_results"])
+            random.uniform(self.os_mono_profile["min_pwr_db"], self.os_mono_profile["max_pwr_db"]) for _ in range(self.os_ping_params["num_results"])
         ]
         # Simulate sending a ping message
         self.update_profile(pwr_results=measurements)
