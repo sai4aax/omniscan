@@ -14,6 +14,23 @@ from . import definitions
 from collections.abc import Iterable
 
 class OmniScan(device.PingDevice):
+
+    def __init__(self):
+        super().__init__()
+        self.pararms_start_mm=0
+        self.pararms_length_mm=5000
+        self.pararms_msec_per_ping=0
+        self.pararms_reserved_1=0.0
+        self.pararms_reserved_2=0.0
+        self.pararms_pulse_len_percent=0.0
+        self.pararms_filter_duration_percent=0.0
+        self.pararms_gain_index=0
+        self.pararms_num_results=20
+        self.pararms_enable=0
+        self.pararms_reserved_3=0
+        self.pararms_reserved_4=0
+        self.pararms_reserved_5=0
+
     ##
     # @brief Initialize the Omniscan sensor device.
     # This function calls the base PingDevice.initialize() method and verifies
@@ -79,6 +96,7 @@ class OmniScan(device.PingDevice):
         Set Omniscan450 OS Ping Params.
         All parameters correspond to the OMNISCAN450_CONTROL_OS_PING_PARAMS message fields.
         """
+        # TODO: need a method to check whether the given setpoints is correct or not
         m = pingmessage.PingMessage(definitions.OMNISCAN450_CONTROL_OS_PING_PARAMS)
         m.start_mm = start_mm
         m.length_mm = length_mm
@@ -188,7 +206,97 @@ class OmniScan(device.PingDevice):
             }
   
         return result
+
+    def set_start_mm(self, start_mm):
+        previous_value = self.pararms_start_mm
+        self.pararms_start_mm = start_mm
+        try:
+            return self.set_os_ping_params()
+        except Exception as e:
+            self.get_logger().error(f"set_start_mm({self.pararms_start_mm}) failed: {e}")
+            self.pararms_start_mm = previous_value
+            return False      
         
+    def set_length_mm(self, length_mm):
+        previous_value = self.pararms_length_mm
+        self.pararms_length_mm = length_mm
+        try:
+            return self.set_os_ping_params()
+        except Exception as e:
+            self.get_logger().error(f"set_length_mm({self.pararms_length_mm}) failed: {e}")
+            self.pararms_length_mm = previous_value
+            return False  
+
+    def set_msec_per_ping(self, msec_per_ping):
+        previous_value = self.pararms_msec_per_ping
+        self.pararms_msec_per_ping = msec_per_ping
+        try:
+            return self.set_os_ping_params()
+        except Exception as e:
+            self.get_logger().error(f"set_msec_per_ping({self.pararms_msec_per_ping}) failed: {e}")
+            self.pararms_msec_per_ping = previous_value
+            return False  
+
+    def set_pulse_len_percent(self, pulse_len_percent):
+        previous_value = self.pararms_pulse_len_percent
+        self.pararms_pulse_len_percent = pulse_len_percent
+        try:
+            return self.set_os_ping_params()
+        except Exception as e:
+            self.get_logger().error(f"set_pulse_len_percent({self.pararms_pulse_len_percent}) failed: {e}")
+            self.pararms_pulse_len_percent = previous_value
+            return False  
+
+    def set_filter_duration_percent(self, filter_duration_percent):
+        previous_value = self.pararms_filter_duration_percent
+        self.pararms_filter_duration_percent = filter_duration_percent
+        try:
+            return self.set_os_ping_params()
+        except Exception as e:
+            self.get_logger().error(f"set_filter_duration_percent({self.pararms_filter_duration_percent}) failed: {e}")
+            self.pararms_filter_duration_percent = previous_value
+            return False  
+
+    def set_gain_index(self, gain_index):
+        previous_value = self.pararms_gain_index
+        self.pararms_gain_index = gain_index
+        try:
+            return self.set_os_ping_params()
+        except Exception as e:
+            self.get_logger().error(f"set_filter_duration_percent({self.pararms_gain_index}) failed: {e}")
+            self.pararms_gain_index = previous_value
+            return False  
+
+    def set_num_results(self, num_results):
+        previous_value = self.pararms_num_results
+        self.pararms_num_results = num_results
+        try:
+            return self.set_os_ping_params()
+        except Exception as e:
+            self.get_logger().error(f"set_num_results({self.pararms_num_results}) failed: {e}")
+            self.pararms_num_results = previous_value
+            return False
+
+    def enable_ping(self):
+        previous_value = self.pararms_enable
+        self.pararms_enable = True
+        try:
+            return self.set_os_ping_params()
+        except Exception as e:
+            self.get_logger().error(f"enable_ping({self.pararms_enable}) failed: {e}")
+            self.pararms_enable = previous_value
+            return False
+        
+    def disable_ping(self):
+        previous_value = self.pararms_enable
+        self.pararms_enable = False
+        try:
+            return self.set_os_ping_params()
+        except Exception as e:
+            self.get_logger().error(f"enable_ping({self.pararms_enable}) failed: {e}")
+            self.pararms_enable = previous_value
+            return False
+
     
 if __name__ == "__main__":
     import argparse

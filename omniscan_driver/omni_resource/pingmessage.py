@@ -269,22 +269,26 @@ class PingMessage(object):
                 for attr in payload_dict[self.message_id]["field_names"][:-1]:
                     payload_string += "\n  - " + attr + ": " + str(getattr(self, attr))
 
-                # the variable length field is always the last field
-                attr = payload_dict[self.message_id]["field_names"][-1:][0]
+                attr = payload_dict[self.message_id]["field_names"][-1]
+                field_value = getattr(self, attr)
 
-                # format this field as a list of hex values (rather than a string if we did not perform this handling)
-                payload_string += "\n  - " + attr + ": " + str([hex(item) for item in getattr(self, attr)])
+                if isinstance(field_value, list) and all(isinstance(item, int) for item in field_value):
+                    payload_string += "\n  - " + attr + ": " + str([hex(item) for item in field_value])
+                else:
+                    payload_string += "\n  - " + attr + ": " + str(field_value)
+
 
             else:  # handling of static length messages and text messages
                 for attr in payload_dict[self.message_id]["field_names"]:
                     payload_string += "\n  - " + attr + ": " + str(getattr(self, attr))
 
         representation = (
-            "\n\n--------------------------------------------------\n"
+            "--------------------------------------------------\n"+
             "ID: " + str(self.message_id) + " - " + self.name + "\n" +
             header_string + "\n" +
             payload_string + "\n" +
-            "Checksum: " + str(self.checksum) + " check: " + str(self.calculate_checksum()) + " pass: " + str(self.verify_checksum())
+            "Checksum: " + str(self.checksum) + " check: " + str(self.calculate_checksum()) + " pass: " + str(self.verify_checksum())+
+            "\n--------------------------------------------------\n"
         )
 
         return representation
@@ -486,12 +490,27 @@ if __name__ == "__main__":
         0x05  # 1502_L
         ])
 
+    response_bytes = bytearray([
+        0x42, 
+        0x52, 
+        0x02, 
+        0x00,
+        0x06,
+        0x00,
+        0x00,
+        0x00,
+        0x05,
+        0x00,
+        0xa1,
+        0x00
+    ])
+
     p = PingParser()
 
     result = None
-    # A text message
+    # real_response 
     print("\n---Testing protocol_version---\n")
-    for byte in test_protocol_version_buf:
+    for byte in response_bytes:
         result = p.parse_byte(byte)
 
     if result == p.NEW_MESSAGE:
@@ -500,13 +519,24 @@ if __name__ == "__main__":
         print("fail:", result)
         exit(1)
 
-    # A dynamic vector message
-    print("\n---Testing profile---\n")
-    for byte in test_profile_buf:
-        result = p.parse_byte(byte)
+    # # A text message
+    # print("\n---Testing protocol_version---\n")
+    # for byte in test_protocol_version_buf:
+    #     result = p.parse_byte(byte)
 
-    if result == p.NEW_MESSAGE:
-        print(p.rx_msg)
-    else:
-        print("fail:", result)
-        exit(1)
+    # if result == p.NEW_MESSAGE:
+    #     print(p.rx_msg)
+    # else:
+    #     print("fail:", result)
+    #     exit(1)
+
+    # # A dynamic vector message
+    # print("\n---Testing profile---\n")
+    # for byte in test_profile_buf:
+    #     result = p.parse_byte(byte)
+
+    # if result == p.NEW_MESSAGE:
+    #     print(p.rx_msg)
+    # else:
+    #     print("fail:", result)
+    #     exit(1)

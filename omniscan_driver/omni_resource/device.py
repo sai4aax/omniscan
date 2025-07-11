@@ -18,6 +18,20 @@ import logging
 from . import definitions
 from . import pingmessage
 
+DEBUG = False
+ERROR = True
+INFO = True
+def debug(message):
+    if DEBUG:
+        print(f"[DEBUG]: {message}")
+
+def error(message):
+    if ERROR:
+        print(f"[ERROR]: {message}")
+
+def info(message):
+    if INFO:
+        print(f"[INFO]: {message}")
 
 class PingDevice(object):
     _input_buffer = deque()
@@ -38,32 +52,32 @@ class PingDevice(object):
         self.connection_type = None # 'serial', 'udp', or 'tcp'
         self.logger = logging.getLogger(__name__)
         
-        self.timeout = 1.0  # Default timeout for socket operations
+        self.timeout = 2.0  # Default timeout for socket operations
         self.wait_time = 0.5 # try after this amount of time if there is no data now
         self.max_number_of_tries = int(self.timeout/self.wait_time)
         
     def connect(self):
         if self.connection_type == "serial":
-            self.logger.error("Connecting to serial device...")
+            error("Connecting to serial device...")
             if not self.device_name:
                 raise ValueError("Device name is required for serial connection.")
             if not self.baudrate:
                 raise ValueError("Baudrate is required for serial connection.")
-            self.logger.info(f"Connecting to serial device {self.device_name} at {self.baudrate} bps")
+            info(f"Connecting to serial device {self.device_name} at {self.baudrate} bps")
             self.connect_serial()
         elif self.connection_type == "udp":
-            self.logger.error("Connecting to UDP server...")
+            error("Connecting to UDP server...")
             if not self.server_address:
                 raise ValueError("Server address is required for UDP connection.")      
             self.connect_udp()
         elif self.connection_type == "tcp":
-            self.logger.error("Connecting to TCP server...")
+            error("Connecting to TCP server...")
             if not self.server_address:
                 raise ValueError("Server address is required for TCP connection.")
-            self.logger.info(f"Connecting to TCP server at {self.server_address}...")
+            info(f"Connecting to TCP server at {self.server_address}...")
             self.connect_tcp() 
         else:
-            self.logger.error(f"Invalid connection type{self.connection_type}. Must be 'serial', 'udp', or 'tcp'.")
+            error(f"Invalid connection type{self.connection_type}. Must be 'serial', 'udp', or 'tcp'.")
    
     def connect_serial(self):
         if self.is_connected():
@@ -73,15 +87,16 @@ class PingDevice(object):
             raise ValueError("Device name is required for serial connection.")
 
         try:
-            self.logger.info(f"Opening serial device {self.device_name} at {self.baudrate} bps")
+            info(f"Opening serial device {self.device_name} at {self.baudrate} bps")
             self.iodev = serial.Serial(self.device_name, self.baudrate, timeout=self.timeout, write_timeout=self.timeout)
             self.connection_type = "serial"
         except serial.SerialException as e:
             self.disconnect()
-            self.logger.error(f"Failed to open serial port {self.device_name}: {e}")
+            error(f"Failed to open serial port {self.device_name}: {e}")
 
     def connect_udp(self): 
         if self.is_connected():
+        # if True:
             print(f"reconnecting to udp port {self.server_address}")
         
         else:
@@ -100,21 +115,21 @@ class PingDevice(object):
         #     print("Sensor is offline, attempting to reconnect...")
         #     time.sleep(1.0)  # Wait before retrying
 
-        self.logger.info(f"Opened UDP socket at {self.server_address}")
+        info(f"Opened UDP socket at {self.server_address}")
         self.connection_type = "udp"
             
     def connect_tcp(self, retry_delay: float = 1.0):
         while True:
             try:
-                self.logger.info(f"Connecting to TCP server at {self.server_address}...")
+                info(f"Connecting to TCP server at {self.server_address}...")
                 self.iodev = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.iodev.settimeout(self.timeout)
                 self.iodev.connect(self.server_address)
-                self.connection_type = self.CONN_TYPE_TCP
-                self.logger.info("TCP connection established.")
+                self.connection_type = "tcp"
+                info("TCP connection established.")
                 return
             except (socket.timeout, socket.gaierror, socket.error) as e:
-                self.logger.warning(f"TCP connection failed: {e}")
+                error(f"TCP connection failed: {e}")
                 self.disconnect()
                 time.sleep(retry_delay)   
 
@@ -129,18 +144,18 @@ class PingDevice(object):
             except serial.SerialException as e:
                 return False
         elif self.connection_type == "tcp":
-            print("from is_sensor_online -> checking if socket is online")
+            debug("from is_sensor_online -> checking if socket is online")
             try:
-                result = self.iodev.send(b"")  # Send empty packet to check
-                print("Socket is online", result)
+                # result = self.iodev.send(b"")  # Send empty packet to check
+                # print("Socket is online", result)
                 return True
             except socket.error:
                 return False
         elif self.connection_type == "udp" :
-            self.logger.debug("we have to send a request to check if the sensor is online")
+            debug("we have to send a request to check if the sensor is online")
             return True
         else:
-            self.logger.error("Invalid connection type. Must be 'serial', 'udp', or 'tcp'.")
+            debug("Invalid connection type. Must be 'serial', 'udp', or 'tcp'.")
             return False
             
             
@@ -150,10 +165,10 @@ class PingDevice(object):
     def disconnect(self):
         if self.iodev:
             try:
-                self.logger.debug(f"Disconnecting device: {self.iodev}")
+                debug(f"Disconnecting device: {self.iodev}")
                 self.iodev.close()
             except Exception as e:
-                self.logger.error(f"Error while disconnecting: {e}", exc_info=True)
+                error(f"Error while disconnecting: {e}", exc_info=True)
             finally:
                 self.iodev = None  
                 
@@ -165,45 +180,48 @@ class PingDevice(object):
             elif self.connection_type in ['udp', 'tcp']:
                 data = self.iodev.recv(4096)
                 self._input_buffer.extendleft(data)
+
+            debug(f"got {len(data)} bytes of data into buffer")
             return True
         except serial.SerialException as e:
-            self.logger.debug(f"Serial device disconnected: {e}")
+            debug(f"Serial device disconnected: {e}")
             return False
         except socket.timeout:
-            self.logger.debug("Socket timeout, no data received.")
+            debug("Socket timeout, no data received.")
             return False
         except socket.error as e:
-            self.logger.debug(f"Socket read error: {e}. Attempting to reconnect...")
+            debug(f"Socket read error: {e}. Attempting to reconnect...")
             return False
         except Exception as e:
-            self.logger.debug(f"An unexpected error occurred during read: {e}")
+            debug(f"An unexpected error occurred during read: {e}")
             return False
 
     def read(self):
         try:
-            self.logger.debug("Reading data from IO device...")
+            debug("Reading data from IO device...")
             reading_status =  self.read_io()
             if reading_status:
+                debug("parsing the data from the buffer")
                 while len(self._input_buffer):
                     b = self._input_buffer.pop()
                     if self.parser.parse_byte(b) == pingmessage.PingParser.NEW_MESSAGE:
                         if self.handle_message(self.parser.rx_msg):
                             return self.parser.rx_msg
             else:
-                self.logger.debug("Failed to read from IO device, reading status is False.")
+                debug("Failed to read from IO device, reading status is False.")
                 return None
         except ConnectionError as e:
-            self.logger.error(f"Connection error in read(): {e}", file=sys.stderr)
+            error(f"Connection error in read(): {e}", file=sys.stderr)
             return None
 
         return None
 
     def write(self, data):
         if not self.is_connected():
-            self.logger.error("IO device is not connected.")
+            error("IO device is not connected.")
             self.connect()
         data_sent = False
-        
+        debug(f"writing {data} to the sensor")
         while not data_sent:
             try:
                 if self.connection_type == 'serial':
@@ -215,44 +233,59 @@ class PingDevice(object):
                 data_sent = True
                 
             except serial.SerialException as e:
-                self.logger.error(f"Failed to write to serial device: {e}")
+                debug(f"Failed to write to serial device: {e}")
                 
             except socket.error as e:
-                self.logger.error(f"Socket write error: {e}. Attempting to reconnect...")
+                debug(f"Socket write error: {e}. Attempting to reconnect...")
             except Exception as e:
-                self.logger.error(f"An unexpected error occurred during write: {e}")
+                debug(f"An unexpected error occurred during write: {e}")
 
 
     def initialize(self):
         if not self.is_sensor_online():
-            self.logger.info("Cannot initialize, device is not online.", file=sys.stderr)
+            print("Cannot initialize, device is not online.", file=sys.stderr)
             return False
-        self.logger.debug("sending a request to get protocol version -> initialization")
-        return self.request(definitions.COMMON_GET_PROTOCOL_VERSION) is not None
+        debug("sending a request to get protocol version -> initialization")
+        return self.request(definitions.COMMON_GET_DEVICE_INFORMATION) is not None
 
     def request(self, m_id):
         msg = pingmessage.PingMessage(definitions.COMMON_GENERAL_REQUEST)
         msg.requested_id = m_id
         msg.pack_msg_data()
-        self.write(msg.msg_data)
         
+        # debug("\n\n")
+        debug("sending message:")
+        debug(msg)
+        self.write(msg.msg_data)
         
         got_response = False
         number_of_tries = 0
         while not got_response:
             if number_of_tries == self.max_number_of_tries:
-                self.logger.error("disconnected :(")
+                error("disconnected :(")
             number_of_tries += 1
-                 
-            self.logger.debug("waiting for the response")
+
+            # print("")
+            debug(f"waiting for the response")
             rx_msg = self.read()
-            if rx_msg is not None and rx_msg.message_id == m_id:
-                if number_of_tries >= self.max_number_of_tries:
-                    self.logger.error("sensor connected :)")
-                got_response = True
-                return rx_msg
+            if rx_msg is not None:
+                # print("\n")
+                debug(f"message we got \n{rx_msg}")
+                if rx_msg.message_id == msg.requested_id:
+                    if number_of_tries >= self.max_number_of_tries:
+                        error("sensor connected :)")
+                    debug("got the requested message")
+                    got_response = True
+                    return rx_msg
+                elif rx_msg.message_id == definitions.COMMON_GENERAL_NACK:
+                    error("got nack message")
+                    debug(f"nack_id : {rx_msg.nacked_id}")
+                    debug(f"nack_message : {rx_msg.nack_message}")
             else:
+                debug("timeout so again sending the message")
                 time.sleep(self.wait_time)
+                debug("\n\n")
+                debug(f"sending message: \n{msg}\n")
                 self.write(msg.msg_data)
                 
 
@@ -283,10 +316,10 @@ class PingDevice(object):
                     setattr(self, "_" + attr, getattr(msg, attr))
                 return True
             except AttributeError as e:
-                self.logger.error(f"Attribute error while handling msg {msg.message_id} ({msg.name}): {e}", file=sys.stderr)
+                error(f"Attribute error while handling msg {msg.message_id} ({msg.name}): {e}", file=sys.stderr)
                 return False
         else:
-            self.logger.error(f"Unrecognized message: {msg.message_id}", file=sys.stderr)
+            error(f"Unrecognized message: {msg.message_id}", file=sys.stderr)
             return False
 
     def __repr__(self):
@@ -333,6 +366,7 @@ if __name__ == "__main__":
 
     p = PingDevice()
 
+
     try:
         if args.device:
             p.device_name = args.device
@@ -354,30 +388,30 @@ if __name__ == "__main__":
         p.connect()
 
         if not p.initialize():
-            p.logger.error("Failed to initialize device.", file=sys.stderr)
+            error("Failed to initialize device.", file=sys.stderr)
             exit(1)
 
-        p.logger.info("Initialized: True")
-        p.logger.info(p)
+        # info("Initialized: True")
+        # info(p)
 
-        p.logger.info("\nTesting get_device_information")
-        info = p.get_device_information()
-        if info:
-            p.logger.info(f"  {info}")
-            p.logger.info("  >> pass: True <<")
-        else:
-            p.logger.error("  >> pass: False <<")
+        # info("\nTesting get_device_information")
+        # info = p.get_device_information()
+        # if info:
+        #     info(f"  {info}")
+        #     info("  >> pass: True <<")
+        # else:
+        #     error("  >> pass: False <<")
 
-        p.logger.info("\nTesting get_protocol_version")
-        proto = p.get_protocol_version()
-        if proto:
-            p.logger.info(f"  {proto}")
-            p.logger.info("  >> pass: True <<")
-        else:
-            p.logger.error("  >> pass: False <<")
+        # info("\nTesting get_protocol_version")
+        # proto = p.get_protocol_version()
+        # if proto:
+        #     info(f"  {proto}")
+        #     info("  >> pass: True <<")
+        # else:
+        #     error("  >> pass: False <<")
 
     except (ConnectionError, ValueError) as e:
-        p.logger.error(f"Error: {e}", file=sys.stderr)
+        error(f"Error: {e}", file=sys.stderr)
         exit(1)
     finally:
         p.disconnect()

@@ -24,6 +24,16 @@ class OmniscanNode(Node):
             exit(1)
 
         self.omniscan = OmniScan()
+        self.omniscan.pararms_start_mm=0
+        self.omniscan.pararms_length_mm=5000
+        self.omniscan.pararms_msec_per_ping=0
+        self.omniscan.pararms_pulse_len_percent=0.0
+        self.omniscan.pararms_filter_duration_percent=0.0
+        self.omniscan.pararms_gain_index=0
+        self.omniscan.pararms_num_results=20
+        self.omniscan.pararms_enable=0
+
+
 
         # # Connect to the device
         try:
@@ -75,7 +85,7 @@ class OmniscanNode(Node):
         # self.get_logger().info("  > > pass: %s < <" % (result is not None))
         
         # enable ping on statup
-        self.enable_ping()
+        self.omniscan.enable_ping()
 
 
     def timer_callback(self):
@@ -106,14 +116,7 @@ class OmniscanNode(Node):
         self.publisher_.publish(msg)
         self.get_logger().debug(str(result["pwr_results"]))
         # self.get_logger().debug('Published: %s' % str(msg.ping_number))
-        
-    def enable_ping(self, enable=True):
-        try:
-            return self.omniscan.set_os_ping_params(enable=enable)
-        except Exception as e:
-            self.get_logger().error(f"enable_ping({enable}) failed: {e}")
-            return False
-        
+         
 
 def main(args=None):
     rclpy.init(args=args)
@@ -121,6 +124,7 @@ def main(args=None):
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
+        node.omniscan.disable_ping()
         print("\n[INFO] OmniscanNode terminated by user.")
     finally:
         node.destroy_node()
