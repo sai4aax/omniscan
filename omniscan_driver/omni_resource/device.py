@@ -278,7 +278,7 @@ class PingDevice(object):
                     got_response = True
                     return rx_msg
                 elif rx_msg.message_id == definitions.COMMON_GENERAL_NACK:
-                    error("got nack message")
+                    debug("got nack message")
                     debug(f"nack_id : {rx_msg.nacked_id}")
                     debug(f"nack_message : {rx_msg.nack_message}")
             else:

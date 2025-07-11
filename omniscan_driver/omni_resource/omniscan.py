@@ -98,28 +98,28 @@ class OmniScan(device.PingDevice):
         """
         # TODO: need a method to check whether the given setpoints is correct or not
         m = pingmessage.PingMessage(definitions.OMNISCAN450_CONTROL_OS_PING_PARAMS)
-        m.start_mm = start_mm
-        m.length_mm = length_mm
-        m.msec_per_ping = msec_per_ping
-        m.reserved_1 = reserved_1
-        m.reserved_2 = reserved_2
-        m.pulse_len_percent = pulse_len_percent
-        m.filter_duration_percent = filter_duration_percent
-        m.gain_index = gain_index
-        m.num_results = num_results
-        m.enable = enable
-        m.reserved_3 = reserved_3
-        m.reserved_4 = reserved_4
-        m.reserved_5 = reserved_5
+        m.start_mm = self.pararms_start_mm
+        m.length_mm = self.pararms_length_mm
+        m.msec_per_ping = self.pararms_msec_per_ping
+        m.reserved_1 = self.pararms_reserved_1
+        m.reserved_2 = self.pararms_reserved_2
+        m.pulse_len_percent = self.pararms_pulse_len_percent
+        m.filter_duration_percent = self.pararms_filter_duration_percent
+        m.gain_index = self.pararms_gain_index
+        m.num_results = self.pararms_num_results
+        m.enable = self.pararms_enable
+        m.reserved_3 = self.pararms_reserved_3
+        m.reserved_4 = self.pararms_reserved_4
+        m.reserved_5 = self.pararms_reserved_5
         m.pack_msg_data()
         self.write(m.msg_data)
 
         # Read back the data and check that changes have been applied
         result = self.request(definitions.OMNISCAN450_GET_OS_MONO_PROFILE)
-        if (result.start_mm != start_mm or
-            result.length_mm != length_mm or
-            result.gain_index != gain_index or
-            result.num_results != num_results):
+        if (result.start_mm != self.pararms_start_mm or
+            result.length_mm != self.pararms_length_mm or
+            result.gain_index != self.pararms_gain_index or
+            result.num_results != self.pararms_num_results):
             print("Error: OS Ping Params not set correctly.")
             return False        
         return True

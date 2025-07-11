@@ -30,8 +30,8 @@ class OmniscanNode(Node):
         self.omniscan.pararms_pulse_len_percent=0.0
         self.omniscan.pararms_filter_duration_percent=0.0
         self.omniscan.pararms_gain_index=0
-        self.omniscan.pararms_num_results=20
-        self.omniscan.pararms_enable=0
+        self.omniscan.pararms_num_results=30
+        self.omniscan.pararms_enable=1
 
 
 
@@ -84,8 +84,8 @@ class OmniscanNode(Node):
         # self.get_logger().info("  " + str(result))
         # self.get_logger().info("  > > pass: %s < <" % (result is not None))
         
-        # enable ping on statup
-        self.omniscan.enable_ping()
+        # setup the parameters
+        self.omniscan.set_os_ping_params()
 
 
     def timer_callback(self):
