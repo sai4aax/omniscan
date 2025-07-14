@@ -24,13 +24,13 @@ class OmniscanNode(Node):
             exit(1)
 
         self.omniscan = OmniScan()
-        self.omniscan.pararms_start_mm=0
+        self.omniscan.pararms_start_mm=30
         self.omniscan.pararms_length_mm=5000
         self.omniscan.pararms_msec_per_ping=0
         self.omniscan.pararms_pulse_len_percent=0.0
         self.omniscan.pararms_filter_duration_percent=0.0
         self.omniscan.pararms_gain_index=0
-        self.omniscan.pararms_num_results=30
+        self.omniscan.pararms_num_results=250
         self.omniscan.pararms_enable=1
 
 

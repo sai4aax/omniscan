@@ -241,9 +241,10 @@ class PingMessage(object):
 
             
             if self.message_id == definitions.OMNISCAN450_GET_OS_MONO_PROFILE:
-                num_floats = var_length // 4
-                # print(f"OMNISCAN450_GET_OS_MONO_PROFILE: {num_floats} floats")
-                return payload_dict[self.message_id]["format"] + "f" * num_floats
+                array_len = var_length // 2
+                # print(f"OMNISCAN450_GET_OS_MONO_PROFILE: {array_len} pwr_results")
+                # print(f"payload format", payload_dict[self.message_id]["format"])
+                return payload_dict[self.message_id]["format"] + "H" * array_len
             else:
                 return payload_dict[self.message_id]["format"] + str(var_length) + "s"
             
@@ -505,19 +506,74 @@ if __name__ == "__main__":
         0x00
     ])
 
+    mono_profile  = bytearray([
+    0x42, 0x52,             # Start bytes: 'B', 'R'
+    0x48, 0x00,             # Payload length = 72 bytes
+    0x96, 0x08,             # Message ID = 2198 (0x0896)
+    0x01, 0xff,             # Source = 1, Destination = 255
+
+    # Payload (72 bytes):
+    0xc0, 0x10, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0x10, 0x27, 0x00, 0x00,
+    0x52, 0x2a, 0x01, 0x00,
+    0x37, 0xe2, 0x06, 0x00,
+    0x00, 0x00,
+    0x0a, 0x00,
+    0x98, 0x3a,
+    0xff,
+    0x20,
+    0x09, 0xd7, 0x55, 0x38,
+    0x00, 0x00, 0xa8, 0x40,
+    0xcc, 0x8b, 0x31, 0x42,
+    0xde, 0x17, 0xf0, 0x41,
+    0x00, 0x00, 0x00, 0x00,
+    0xb4, 0xdd, 0xf6, 0xc1,
+    0x83, 0x47,
+    0x04, 0x8c,
+    0xf1, 0xd2,
+    0xff, 0xff,
+    0xb3, 0xb7,
+    0x13, 0x67,
+    0x8e, 0xb9,
+    0x53, 0xd9,
+    0x00, 0x00,
+    0x3c, 0xa7,
+
+    # Checksum (sum of all previous bytes mod 65536):
+    0xfa, 0x1a              # Checksum = 0x1AFA
+])
+
+
+
     p = PingParser()
 
     result = None
     # real_response 
     print("\n---Testing protocol_version---\n")
-    for byte in response_bytes:
+    for byte in mono_profile:
         result = p.parse_byte(byte)
+        # print(byte, result)
 
+    # print("final result is: ", result)
+    # print("p.NEW_MESSAGE: ", p.NEW_MESSAGE)
     if result == p.NEW_MESSAGE:
         print(p.rx_msg)
     else:
         print("fail:", result)
         exit(1)
+
+
+    # # real_response 
+    # print("\n---Testing protocol_version---\n")
+    # for byte in response_bytes:
+    #     result = p.parse_byte(byte)
+
+    # if result == p.NEW_MESSAGE:
+    #     print(p.rx_msg)
+    # else:
+    #     print("fail:", result)
+    #     exit(1)
 
     # # A text message
     # print("\n---Testing protocol_version---\n")

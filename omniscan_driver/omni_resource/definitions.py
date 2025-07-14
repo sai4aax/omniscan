@@ -107,7 +107,8 @@ payload_dict_omniscan450 = {
         "format": "IIIIIHHHBBffffff",  # header, pwr_results is dynamic
         "field_names": (
             "ping_number", "start_mm", "length_mm", "timestamp_ms", "ping_hz",
-            "gain_index", "num_results", "sos_dmps", "channel_number", "reserved",
+            "gain_index", "num_results", "sos_dmps",
+            "channel_number", "reserved",
             "pulse_duration_sec", "analog_gain", "max_pwr_db", "min_pwr_db",
             "transducer_heading_deg", "vehicle_heading_deg", "pwr_results"
         ),

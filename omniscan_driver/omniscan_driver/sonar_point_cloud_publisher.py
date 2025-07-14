@@ -8,14 +8,23 @@ import tf2_sensor_msgs.tf2_sensor_msgs
 import struct
 import math
 
-threshold = 70
+TO_DB = 0
+TO_0_TO_100 = 1
+TO_BIN = 2
+processing = TO_0_TO_100
+
+BRIGHTNESS = 0.0
+CONTRAST = 1.0
+BINARY_TRESH = 69
+
+THRESH_TO_BE_POINT = 69
 
 def convert_pwr_to_points(pwr_results, start_mm, length_mm):
     points = []
     bin_length = (length_mm - start_mm) / len(pwr_results)
     for i in range(len(pwr_results)):
         radius = start_mm + i * bin_length
-        if pwr_results[i] > threshold:
+        if pwr_results[i] > THRESH_TO_BE_POINT:
             intensity = float(pwr_results[i])
             for theta_deg in range(-25, 25, 1):
                 if intensity > 0.1:
@@ -84,12 +93,22 @@ class ProfileToPointCloud(Node):
             self.get_logger().warn(f"No transform for timestamp {msg.timestamp_ms}: {str(e)}")
             return
 
-        range_db = msg.max_pwr_db - msg.min_pwr_db
-        normalized_pwr_results = [
-            (pwr - msg.min_pwr_db) * 100 / range_db for pwr in msg.pwr_results
-        ]
 
-        points = convert_pwr_to_points(msg.pwr_results, msg.start_mm, msg.length_mm)
+        pwr_results = msg.pwr_results
+        for i in range(len(msg.pwr_results)):
+            pwr_results[i] = min(max(int(pwr_results[i] * CONTRAST + (65535 * BRIGHTNESS)), 0), 65535)
+
+            if(processing == TO_0_TO_100):
+                pwr_results[i] = ((msg.pwr_results[i]/65535.0)*100)
+
+            elif(processing == TO_DB):
+                pwr_results[i] = (msg.min_pwr_db + (msg.max_pwr_db - msg.min_pwr_db) * (msg.pwr_results[i] / 65535.0))
+
+            elif(processing == TO_BIN):
+                pwr_results[i] = 0 if msg.pwr_results[i] < (BINARY_TRESH/100)*(65535.0) else 1
+
+
+        points = convert_pwr_to_points(pwr_results, msg.start_mm, msg.length_mm)
         cloud = create_pointcloud2(points, frame_id=self.target_frame, stamp=stamp)
         self.publisher.publish(cloud)
 

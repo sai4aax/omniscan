@@ -79,19 +79,8 @@ class OmniScan(device.PingDevice):
     # This configures the ping start position, length, ping rate, pulse and filter durations, gain, and other parameters.
     # The message is sent to write the device parameters, then the values are read back from the device for verification.
     #
-    # @param start_mm - Units: mm; The starting distance for the ping.
-    # @param length_mm - Units: mm; The length of the ping profile.
-    # @param msec_per_ping - Units: ms; The interval between pings (0 for fastest rate).
-    # @param reserved_1, reserved_2 - Reserved fields, set to 0.
-    # @param pulse_len_percent - Pulse duration as a percentage (typical: 0.002).
-    # @param filter_duration_percent - Filter duration as a percentage (typical: 0.0015).
-    # @param gain_index - Gain index (-1 for auto gain).
-    # @param num_results - Number of results in the profile (typical: 600).
-    # @param enable - Enable flag (1 to enable).
-    # @param reserved_3, reserved_4, reserved_5 - Reserved fields, set to 0.
-    #
     # @return True if the parameters are set and verified successfully, False otherwise.
-    def set_os_ping_params(self, start_mm=0, length_mm=5000, msec_per_ping=0, reserved_1=0.0, reserved_2=0.0, pulse_len_percent=0.0, filter_duration_percent=0.0, gain_index=0, num_results=20, enable=1, reserved_3=0, reserved_4=0, reserved_5=0):
+    def set_os_ping_params(self):
         """
         Set Omniscan450 OS Ping Params.
         All parameters correspond to the OMNISCAN450_CONTROL_OS_PING_PARAMS message fields.
@@ -114,14 +103,22 @@ class OmniScan(device.PingDevice):
         m.pack_msg_data()
         self.write(m.msg_data)
 
-        # Read back the data and check that changes have been applied
-        result = self.request(definitions.OMNISCAN450_GET_OS_MONO_PROFILE)
-        if (result.start_mm != self.pararms_start_mm or
-            result.length_mm != self.pararms_length_mm or
-            result.gain_index != self.pararms_gain_index or
-            result.num_results != self.pararms_num_results):
-            print("Error: OS Ping Params not set correctly.")
-            return False        
+        params_updated = False
+        while not params_updated:
+            # Read back the data and check that changes have been applied
+            result = self.request(definitions.OMNISCAN450_GET_OS_MONO_PROFILE)
+            if (result.start_mm != self.pararms_start_mm or
+                result.length_mm != self.pararms_length_mm or
+                result.gain_index != self.pararms_gain_index or
+                result.num_results != self.pararms_num_results):
+                print("Error: OS Ping Params not set correctly. sending the command again")
+                
+                import time
+                time.sleep(1.0)
+                self.write(m.msg_data)
+            else:
+                print("parameters updated successfully :)")
+                params_updated = True
         return True
 
 
@@ -184,7 +181,7 @@ class OmniScan(device.PingDevice):
         m = self.request(definitions.OMNISCAN450_GET_OS_MONO_PROFILE)
         if m is None:
             return None
-        
+        # print("num_results : ", m.num_results, "length of pwr_results: ", len(m.pwr_results))
         result = {              
             "ping_number": m.ping_number,
             "start_mm": m.start_mm,

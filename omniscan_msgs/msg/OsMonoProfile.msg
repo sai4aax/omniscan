@@ -14,4 +14,4 @@ float32 max_pwr_db
 float32 min_pwr_db
 float32 transducer_heading_deg
 float32 vehicle_heading_deg
-float32[] pwr_results
+uint16[] pwr_results
