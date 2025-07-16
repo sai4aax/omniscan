@@ -113,7 +113,7 @@ To run the driver with a recorded rosbag file:
 
     terminal 1
     ```bash
-    ros2 bag play ~/sensors_ws/src/omniscan/ping_record
+    ros2 bag play /home/sai/workspaces/sensors_ws/src/omniscan/bag_files/ping_record # replace with the path to the bag file
     ```
 
 2.  **Launch the sonar to point cloud converter:**
