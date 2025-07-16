@@ -21,7 +21,7 @@ class OsMonoProfilePublisher(Node):
         msg = OsMonoProfile()
         msg.ping_number = self.ping_number
         msg.start_mm = 100
-        msg.length_mm = 5000
+        msg.length_mm = 1100
         msg.timestamp_ms = int((time.time() - self.start_time) * 1000)
         msg.ping_hz = 400000
         msg.gain_index = randint(0, 10)
@@ -35,9 +35,9 @@ class OsMonoProfilePublisher(Node):
         msg.min_pwr_db = 20.0
         msg.transducer_heading_deg = uniform(0.0, 360.0)
         msg.vehicle_heading_deg = uniform(0.0, 360.0)
-        msg.pwr_results = [int(((uniform(msg.min_pwr_db, msg.max_pwr_db) - msg.min_pwr_db)/(msg.max_pwr_db - msg.min_pwr_db))*65535) for _ in range(msg.num_results)]
-        # msg.pwr_results = [0, 1000, 2000, 5000, 10000, 20000, 30000, 40000, 50000, 60000]
-        # msg.pwr_results = [50000] * 10
+        # msg.pwr_results = [int(((uniform(msg.min_pwr_db, msg.max_pwr_db) - msg.min_pwr_db)/(msg.max_pwr_db - msg.min_pwr_db))*65535) for _ in range(msg.num_results)]
+        # msg.pwr_results = [1000, 1000, 2000, 5000, 10000, 20000, 30000, 40000, 50000, 60000]
+        msg.pwr_results = [int((i+1)*65535/msg.num_results) for i in range(msg.num_results)]
         self.publisher_.publish(msg)
         # self.get_logger().info('Publishing: "%s"' % msg)
 
